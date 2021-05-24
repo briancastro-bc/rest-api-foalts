@@ -1,1 +1,1 @@
-export { ApiController } from './api.controller';
+export { AuthLocalController } from './api/auth/auth-local.controller';

@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
     "outDir": "build",
+    "baseUrl": "src",
     "sourceMap": true,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
@@ -10,6 +11,7 @@
     "module": "commonjs",
     "target": "es2017",
     "rootDir": "src",
+    "removeComments": true,
     "lib": [
       "es2017",
       "dom"

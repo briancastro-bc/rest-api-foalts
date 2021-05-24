@@ -6,7 +6,7 @@ import { createConnection, getConnection, getManager } from 'typeorm';
 // App
 import { User } from '../app/entities';
 
-export const schema = {
+export const userSchema = {
   additionalProperties: false,
   properties: {
     // email: { type: 'string', format: 'email' },
