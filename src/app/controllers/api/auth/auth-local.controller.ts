@@ -1,18 +1,19 @@
 import { Context, dependency, Get, HttpResponseBadRequest, HttpResponseOK, HttpResponseUnauthorized, Post, Session, Store, UseSessions, ValidateBody, ValidateHeader, verifyPassword } from '@foal/core';
 import { isCommon } from '@foal/password';
+import { getSecretOrPrivateKey } from '@foal/jwt';
+import { sign } from 'jsonwebtoken';
 //Importing modules.
 import { User } from '../../../entities';
 //Importing schema.
 import { userSchema } from '../../../schema';
 //Importing hooks.
-import { SessionNotRequired } from '../../../hooks';
+import { UserInSession } from '../../../hooks';
 
 export class AuthLocalController {
   @dependency
   store: Store
   
   /**
-   * 
    * @param ctx define las propiedades que puede recibir un método
    * @type {User} es el objeto que tiene las propiedades de la base de datos.
    * @type {Session} es el objeto que tiene las propiedades de la session.
@@ -20,13 +21,13 @@ export class AuthLocalController {
    */
   
   @Post('/signup')
+  @UserInSession()
   /*@ValidateHeader()*/
   @ValidateBody(userSchema)
-  @SessionNotRequired()
   async signup(ctx: Context<User, Session>): Promise<HttpResponseUnauthorized | HttpResponseOK> {
     if(await isCommon(ctx.request.body.password)) {
       ctx.session.set('error', 'La contraseña no cumple con los requisitos ó es muy común', { flash: true });
-      return new HttpResponseUnauthorized({ error: ctx.session.get('error') });
+      return new HttpResponseUnauthorized({ message: ctx.session.get('error') });
     }
 
     let user = await User.findOne({
@@ -37,7 +38,7 @@ export class AuthLocalController {
 
     if(user){
       ctx.session.set('error', 'El email, apodo o número de telefono ya existe en la base de datos', { flash: true });
-      return new HttpResponseUnauthorized({ error: ctx.session.get('error') });
+      return new HttpResponseUnauthorized({ message: ctx.session.get('error') });
     }
 
     user = new User();
@@ -54,6 +55,7 @@ export class AuthLocalController {
   }
 
   @Post('/signin')
+  @UserInSession()
   /*@ValidateHeader()*/
   @ValidateBody({
     additionalProperties: false,
@@ -64,20 +66,19 @@ export class AuthLocalController {
     required: [ 'email', 'password' ],
     type: 'object'
   })
-  @SessionNotRequired()
-  async signin(ctx: Context<User, Session>): Promise<HttpResponseBadRequest | HttpResponseOK> {
+  async signin(ctx: Context<User, Session>): Promise<HttpResponseUnauthorized| HttpResponseOK> {
     const user = await User.findOne({
       email: ctx.request.body.email
     })
 
     if(!user) {
       ctx.session.set('error', `El email o la contraseña son incorrectos`, { flash: true });
-      return new HttpResponseBadRequest({ error: ctx.session.get('error') });
+      return new HttpResponseUnauthorized({ message: ctx.session.get('error') });
     }
 
     if(!await verifyPassword(ctx.request.body.password, user.password)) {
       ctx.session.set('error', `El email o la contraseña son incorrectos`, { flash: true });
-      return new HttpResponseBadRequest({ error: ctx.session.get('error') });
+      return new HttpResponseUnauthorized({ message: ctx.session.get('error') });
     }
 
     ctx.session.setUser(user);
@@ -86,14 +87,12 @@ export class AuthLocalController {
   }
 
   @Post('/logout')
-  /*@ValidateHeader()*/
-  async logout(ctx: Context): Promise<HttpResponseBadRequest | HttpResponseOK> {
+  async logout(ctx: Context<any, Session>) {
     if(ctx.session) {
       await ctx.session.destroy();
-      return new HttpResponseOK({ message: "La sessión ha finalizado" })
     }
-    
-    return new HttpResponseBadRequest('Sessión isnt already exists');
+
+    return new HttpResponseOK();
   }
 }
 

@@ -12,7 +12,8 @@
       }
     },
     "jwt": {
-      
+      "secret": "env(JWT_SECRET)",
+      "secretEncoding": "base64"
     }
   },
   "database": {

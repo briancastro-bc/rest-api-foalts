@@ -1,1 +1,1 @@
-export { SessionNotRequired } from './sessionNotRequired';
+export { UserInSession } from './user-in-session.hook';
