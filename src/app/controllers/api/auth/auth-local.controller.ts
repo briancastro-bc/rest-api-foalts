@@ -1,4 +1,4 @@
-import { Context, dependency, Get, HttpResponseBadRequest, HttpResponseOK, HttpResponseUnauthorized, Post, Session, Store, UseSessions, ValidateBody, ValidateHeader, verifyPassword } from '@foal/core';
+import { Context, createSession, dependency, Get, HttpResponseBadRequest, HttpResponseNoContent, HttpResponseOK, HttpResponseUnauthorized, Post, Session, Store, UseSessions, ValidateBody, ValidateHeader, verifyPassword } from '@foal/core';
 import { isCommon } from '@foal/password';
 import { getSecretOrPrivateKey } from '@foal/jwt';
 import { sign } from 'jsonwebtoken';
@@ -49,9 +49,12 @@ export class AuthLocalController {
     user.name = ctx.request.body.name;
     await user.save();
     
+    ctx.session = await createSession(this.store);
     ctx.session.setUser(user);
     ctx.session.set('success', `El usuario ${user.nickname} ha sido registrado`, { flash: true })
-    return new HttpResponseOK({ user: user, session: ctx.session });
+    return new HttpResponseOK({
+      user, session: ctx.session, token: ctx.session.getToken()
+    });
   }
 
   @Post('/signin')
@@ -81,9 +84,12 @@ export class AuthLocalController {
       return new HttpResponseUnauthorized({ message: ctx.session.get('error') });
     }
 
+    ctx.session = await createSession(this.store);
     ctx.session.setUser(user);
     ctx.session.set('success', `¡Hola! El usuario ${user.nickname} ha iniciado sesión`, { flash: true });
-    return new HttpResponseOK({ user, session: ctx.session });
+    return new HttpResponseOK({
+      user, session: ctx.session, token: ctx.session.getToken()
+    });
   }
 
   @Post('/logout')
@@ -92,7 +98,7 @@ export class AuthLocalController {
       await ctx.session.destroy();
     }
 
-    return new HttpResponseOK();
+    return new HttpResponseNoContent();
   }
 }
 

@@ -29,6 +29,7 @@
   "dependencies": {
     "@foal/core": "^2.0.0",
     "@foal/csrf": "^1.12.2",
+    "@foal/jwks-rsa": "^2.4.0",
     "@foal/jwt": "^2.4.0",
     "@foal/password": "^2.4.0",
     "@foal/social": "^2.4.0",

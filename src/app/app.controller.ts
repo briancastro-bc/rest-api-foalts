@@ -2,7 +2,7 @@ import { controller, IAppController, Get, Hook, UseSessions, Context, HttpRespon
 import { fetchUser } from '@foal/typeorm';
 import { createConnection } from 'typeorm';
 
-import { AuthLocalController } from './controllers';
+import { AuthLocalController, SocialAuthController } from './controllers';
 
 /**
  * @import trae entidades de la aplicación.
@@ -23,6 +23,7 @@ import { User } from './entities';
 export class AppController implements IAppController {
   subControllers = [
     controller('/api/auth', AuthLocalController),
+    controller('/api/auth-social', SocialAuthController)
   ];
 
   async init(): Promise<void> {
@@ -30,8 +31,8 @@ export class AppController implements IAppController {
   }
 
   @Get('/')
-  index(ctx: Context): HttpResponseOK | Promise<HttpResponseOK> {
-    return new HttpResponseOK('This is an API Rest');
+  index(ctx: Context): HttpResponseNoContent | Promise<HttpResponseOK> {
+    return new HttpResponseNoContent();
   }
 
   @Options('*')
