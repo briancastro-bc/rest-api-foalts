@@ -1,7 +1,7 @@
 import { Context, createSession, dependency, Get, HttpResponseBadRequest, HttpResponseNoContent, HttpResponseOK, HttpResponseUnauthorized, Post, Session, Store, UseSessions, ValidateBody, ValidateHeader, verifyPassword } from '@foal/core';
 import { isCommon } from '@foal/password';
-import { getSecretOrPrivateKey } from '@foal/jwt';
-import { sign } from 'jsonwebtoken';
+import { getSecretOrPrivateKey, removeAuthCookie, setAuthCookie } from '@foal/jwt';
+import { sign, verify } from 'jsonwebtoken';
 //Importing modules.
 import { User } from '../../../entities';
 //Importing schema.
@@ -15,19 +15,17 @@ export class AuthLocalController {
   
   /**
    * @param ctx define las propiedades que puede recibir un método
-   * @type {User} es el objeto que tiene las propiedades de la base de datos.
-   * @type {Session} es el objeto que tiene las propiedades de la session.
-   * @returns el objeto usuario y la session.
+   * @type {User} es el objeto que tiene las propiedades del usuario en la base de datos.
+   * @returns un usuario y un token.
    */
   
   @Post('/signup')
-  @UserInSession()
-  /*@ValidateHeader()*/
+  /*@UserInSession()
+  @ValidateHeader()*/
   @ValidateBody(userSchema)
-  async signup(ctx: Context<User, Session>): Promise<HttpResponseUnauthorized | HttpResponseOK> {
+  async signup(ctx: Context<User>): Promise<HttpResponseUnauthorized | HttpResponseOK> {
     if(await isCommon(ctx.request.body.password)) {
-      ctx.session.set('error', 'La contraseña no cumple con los requisitos ó es muy común', { flash: true });
-      return new HttpResponseUnauthorized({ message: ctx.session.get('error') });
+      return new HttpResponseUnauthorized({ message: `La contraseña no cumple con los requisitos ó es muy común` });
     }
 
     let user = await User.findOne({
@@ -37,8 +35,7 @@ export class AuthLocalController {
     });
 
     if(user){
-      ctx.session.set('error', 'El email, apodo o número de telefono ya existe en la base de datos', { flash: true });
-      return new HttpResponseUnauthorized({ message: ctx.session.get('error') });
+      return new HttpResponseUnauthorized({ message: `El email, apodo o número de telefono ya existe en la base de datos` });
     }
 
     user = new User();
@@ -49,17 +46,26 @@ export class AuthLocalController {
     user.name = ctx.request.body.name;
     await user.save();
     
-    ctx.session = await createSession(this.store);
-    ctx.session.setUser(user);
-    ctx.session.set('success', `El usuario ${user.nickname} ha sido registrado`, { flash: true })
+    const token: string = sign(
+      {
+        id: user.id,
+        email: user.email
+      },
+      getSecretOrPrivateKey(),
+      { expiresIn: '1h' }
+    );
+
+    const response = new HttpResponseNoContent();
+    await setAuthCookie(response, token);
+    response.setHeader('Authorization', token);
     return new HttpResponseOK({
-      user, session: ctx.session, token: ctx.session.getToken()
+      response, user, token, message: `¡Uh, hola ${user.nickname}! Te haz registrado.`
     });
   }
 
   @Post('/signin')
-  @UserInSession()
-  /*@ValidateHeader()*/
+  /*@UserInSession()
+  @ValidateHeader()*/
   @ValidateBody({
     additionalProperties: false,
     properties: {
@@ -69,36 +75,38 @@ export class AuthLocalController {
     required: [ 'email', 'password' ],
     type: 'object'
   })
-  async signin(ctx: Context<User, Session>): Promise<HttpResponseUnauthorized| HttpResponseOK> {
+  async signin(ctx: Context<User>): Promise<HttpResponseUnauthorized| HttpResponseOK> {
     const user = await User.findOne({
       email: ctx.request.body.email
     })
 
     if(!user) {
-      ctx.session.set('error', `El email o la contraseña son incorrectos`, { flash: true });
-      return new HttpResponseUnauthorized({ message: ctx.session.get('error') });
+      return new HttpResponseUnauthorized({ message: `El email o la contraseña son incorrectos` });
     }
 
     if(!await verifyPassword(ctx.request.body.password, user.password)) {
-      ctx.session.set('error', `El email o la contraseña son incorrectos`, { flash: true });
-      return new HttpResponseUnauthorized({ message: ctx.session.get('error') });
+      return new HttpResponseUnauthorized({ message: `El email o la contraseña son incorrectos` });
     }
 
-    ctx.session = await createSession(this.store);
-    ctx.session.setUser(user);
-    ctx.session.set('success', `¡Hola! El usuario ${user.nickname} ha iniciado sesión`, { flash: true });
-    return new HttpResponseOK({
-      user, session: ctx.session, token: ctx.session.getToken()
-    });
+    const token: string = sign(
+      {
+        id: user.id,
+        email: user.email
+      },
+      getSecretOrPrivateKey(),
+      { expiresIn: '1h' }
+    );
+
+    const response = new HttpResponseNoContent();
+    await setAuthCookie(response, token);
+    response.setHeader('Authorization', token);
+    return new HttpResponseOK({ response, user, token, message: `Je-je... ¡Gracias por volver a ingresar ${user.nickname}!` });
   }
 
   @Post('/logout')
-  async logout(ctx: Context<any, Session>) {
-    if(ctx.session) {
-      await ctx.session.destroy();
-    }
-
-    return new HttpResponseNoContent();
+  async logout(ctx: Context) {
+    const response = new HttpResponseNoContent()
+    await removeAuthCookie(response);
+    return response;
   }
 }
-

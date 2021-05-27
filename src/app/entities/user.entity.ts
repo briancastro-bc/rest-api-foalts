@@ -1,6 +1,7 @@
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { hashPassword } from '@foal/core';
-import { BaseEntity, Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { BaseEntity, Column, Entity, PrimaryGeneratedColumn, OneToOne } from 'typeorm';
+import { Profile } from './';
 
 export enum UserRole {
   USER = "Usuario",
@@ -52,13 +53,6 @@ export class User extends BaseEntity {
   name: string;
 
   @Column({
-    type: "char",
-    length: 50,
-    nullable: true
-  })
-  last_name: string;
-
-  @Column({
     type: "set",
     enum: UserRole,
     default: [UserRole.USER]
@@ -68,6 +62,7 @@ export class User extends BaseEntity {
   async setPassword(password: string) {
     this.password = await hashPassword(password);
   }
-}
 
-export { DatabaseSession } from '@foal/typeorm';
+  @OneToOne(() => Profile, profile => profile.user)
+  profile: Profile;
+}

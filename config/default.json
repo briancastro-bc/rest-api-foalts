@@ -15,7 +15,12 @@
       "secret": "env(JWT_SECRET)",
       "secretEncoding": "base64",
       "cookie": {
-
+        "name": "auth",
+        "domain": "",
+        "httpOnly": true,
+        "path": "/",
+        "sameSite": "strict",
+        "secure": true
       }
     },
     "social": {

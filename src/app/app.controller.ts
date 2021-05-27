@@ -1,17 +1,17 @@
 import { controller, IAppController, Get, Hook, UseSessions, Context, HttpResponseRedirect, HttpResponseNoContent, HttpResponseOK, Options } from '@foal/core';
+import { JWTOptional } from '@foal/jwt';
 import { fetchUser } from '@foal/typeorm';
 import { createConnection } from 'typeorm';
 
-import { AuthLocalController, SocialAuthController } from './controllers';
+import { AuthLocalController, SocialAuthController, NotificationController, ProfileController } from './controllers';
 
 /**
  * @import trae entidades de la aplicación.
  */
 import { User } from './entities';
 
-@UseSessions({
+@JWTOptional({
   cookie: true,
-  required: false,
   csrf: false,
   user: fetchUser(User)
 })
@@ -23,16 +23,13 @@ import { User } from './entities';
 export class AppController implements IAppController {
   subControllers = [
     controller('/api/auth', AuthLocalController),
-    controller('/api/auth-social', SocialAuthController)
+    controller('/api/auth-social', SocialAuthController),
+    controller('/api/notification', NotificationController),
+    controller('/api/userProfile', ProfileController)
   ];
 
   async init(): Promise<void> {
     await createConnection();
-  }
-
-  @Get('/')
-  index(ctx: Context): HttpResponseNoContent | Promise<HttpResponseOK> {
-    return new HttpResponseNoContent();
   }
 
   @Options('*')

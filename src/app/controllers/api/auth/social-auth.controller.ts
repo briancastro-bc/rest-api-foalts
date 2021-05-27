@@ -1,5 +1,5 @@
 import { promisify } from 'util';
-import { Context, dependency, Get, HttpResponseRedirect, Store, Session, UseSessions, HttpResponseOK, createSession } from '@foal/core';
+import { Context, dependency, Get, HttpResponseRedirect, Store, Session, UseSessions, HttpResponseOK, createSession, HttpResponseNoContent } from '@foal/core';
 import { GoogleProvider } from '@foal/social';
 import { getSecretOrPrivateKey, setAuthCookie } from '@foal/jwt';
 import { sign } from 'jsonwebtoken';
@@ -10,9 +10,6 @@ export class SocialAuthController {
 
   @dependency
   google: GoogleProvider;
-
-  @dependency
-  store: Store
 
   @Get('/signin/google')
   redirectToGoogle(){
@@ -45,11 +42,20 @@ export class SocialAuthController {
       await user.save();
     }
 
-    ctx.session = await createSession(this.store);
-    ctx.session.setUser(user);
-    ctx.session.set('success', `¡Hola! Te haz autenticado con Google`);
-    return new HttpResponseOK({ 
-      user: ctx.user, session: ctx.session, token: ctx.session.getToken(), message: ctx.session.get('success')
+    const token: string = sign(
+      {
+        id: user.id,
+        email: user.email
+      },
+      getSecretOrPrivateKey(),
+      { expiresIn: '1h', subject: user.id.toString() }
+    );
+
+    const response = new HttpResponseNoContent();
+    await setAuthCookie(response, token);
+    response.setHeader('Authorization', token);
+    return new HttpResponseOK({
+      response, user, token, message: `¡Ual-la ${user.nickname}! Te conectaste con Google. ¡Bienvenido!`
     });
   }
 
