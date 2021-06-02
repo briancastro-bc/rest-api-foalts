@@ -4,7 +4,13 @@ import { GoogleProvider } from '@foal/social';
 import { getSecretOrPrivateKey, setAuthCookie } from '@foal/jwt';
 import { sign } from 'jsonwebtoken';
 
-import { User } from '../../../entities';
+import { User, Profile } from '../../../entities';
+
+interface GoogleUser {
+  email: string;
+  name?: string;
+  picture?: string;
+}
 
 export class SocialAuthController {
 
@@ -17,12 +23,9 @@ export class SocialAuthController {
   }
 
   @Get('/signin/google/callback')
-  @UseSessions({
-    cookie: true,
-    csrf: false
-  })
   async handleGoogleRedirection(ctx: Context<User, Session>) {
-    const { userInfo } = await this.google.getUserInfo<{ email: string }>(ctx);
+    const { userInfo } = await this.google.getUserInfo<GoogleUser>(ctx);
+    const profile = new Profile();
 
     if(!userInfo.email){
       throw new Error('Google should have returned an email address.')
@@ -35,11 +38,14 @@ export class SocialAuthController {
     if(!user){
       user = new User();
       user.email = userInfo.email;
+      user.name = userInfo.name ?? 'Unknown';
       for(let i = 0; i <= User.length; i++){
         user.nickname = `User${[i]}`;
         user.phone_number = `your phone number${[i]}`;
       }
+      profile.picture = userInfo.picture ?? 'not-picture';
       await user.save();
+      await profile.save();
     }
 
     const token: string = sign(
@@ -55,7 +61,7 @@ export class SocialAuthController {
     await setAuthCookie(response, token);
     response.setHeader('Authorization', token);
     return new HttpResponseOK({
-      response, user, token, message: `¡Ual-la ${user.nickname}! Te conectaste con Google. ¡Bienvenido!`
+      response, user, profile, token, message: `¡Ual-la ${user.nickname}! Te conectaste con Google. ¡Bienvenido!`
     });
   }
 

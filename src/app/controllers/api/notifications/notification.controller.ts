@@ -8,17 +8,8 @@ import { JWTRequired } from '@foal/jwt';
 import { getRepository } from 'typeorm';
 
 import { Notification } from '../../../entities';
-
 import { RefreshJWT } from '../../../hooks';
-
-const notificationSchema = {
-  additionalProperties: false,
-  properties: {
-    text: { type: 'string', maxLength: 255 },
-  },
-  required: [ 'text' ],
-  type: 'object',
-};
+import { notificationSchema } from '../../../schema';
 
 @JWTRequired()
 @RefreshJWT()

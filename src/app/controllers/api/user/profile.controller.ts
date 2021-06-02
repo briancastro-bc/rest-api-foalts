@@ -1,6 +1,6 @@
 import {
   ApiOperationDescription, ApiOperationId, ApiOperationSummary, ApiResponse,
-  ApiUseTag, Context, Delete, Get, HttpResponseCreated,
+  ApiUseTag, Context, Delete, Get, HttpResponseBadRequest, HttpResponseCreated,
   HttpResponseNoContent, HttpResponseNotFound, HttpResponseOK, Patch, Post,
   Put, ValidateBody, ValidateHeader, ValidatePathParam, ValidateQueryParam
 } from '@foal/core';
@@ -20,7 +20,7 @@ import { profileSchema } from '../../../schema';
 export class ProfileController {
 
   @Get('/')
-  @RoleRequired(UserRole.FOUNDER)
+  //@RoleRequired(UserRole.FOUNDER)
   @ApiOperationId('findProfiles')
   @ApiOperationSummary('Find profiles.')
   @ApiOperationDescription(
@@ -31,17 +31,28 @@ export class ProfileController {
   @ApiResponse(200, { description: 'Returns a list of profiles.' })
   @ValidateQueryParam('skip', { type: 'number' }, { required: false })
   @ValidateQueryParam('take', { type: 'number' }, { required: false })
-  async findProfiles(ctx: Context) {
+  async findProfiles(ctx: Context<User>): Promise<HttpResponseBadRequest | HttpResponseOK> {
     const profiles = await getRepository(Profile).find({
       skip: ctx.request.query.skip,
       take: ctx.request.query.take,
-      where: {},
+      where: { user: ctx.user.id },
     });
-    return new HttpResponseOK(profiles);
+
+    if(!profiles) return new HttpResponseBadRequest({ message: 'Aún no tiene un perfil creado' });
+
+    const user = await getRepository(User).find({
+      id: ctx.user.id
+    });
+
+    let userData: object = {
+      profiles,
+      user
+    }
+    return new HttpResponseOK({ userData, message: `He-he. Te mostramos tu perfil de usuario` } );
   }
 
   @Get('/:profileId')
-  @RoleRequired(UserRole.FOUNDER)
+  //@RoleRequired(UserRole.FOUNDER)
   @ApiOperationId('findUserById')
   @ApiOperationSummary('Find a profile by ID.')
   @ApiResponse(404, { description: 'Profile not found.' })
@@ -58,26 +69,39 @@ export class ProfileController {
   }
 
   @Post('/')
-  //@RoleRequired(UserRole.FOUNDER)
+  //@RoleRequired(UserRole.USER)
   @ApiOperationId('createProfile')
   @ApiOperationSummary('Create a new profile.')
   @ApiResponse(400, { description: 'Invalid profile.' })
   @ApiResponse(201, { description: 'Profile successfully created. Returns the profile.' })
+  @ValidateHeader('Authorization')
   @ValidateBody(profileSchema)
-  async createProfile(ctx: Context<User>) {
-    const userProfile = new Profile();
+  async createProfile(ctx: Context<User>): Promise<HttpResponseBadRequest | HttpResponseCreated> {
+    let profile = await Profile.findOne({
+      picture: ctx.request.body.picture,
+      last_name: ctx.request.body.last_name,
+      user: ctx.user
+    })
 
-    userProfile.picture = ctx.request.body.picture;
-    userProfile.last_name = ctx.request.body.last_name;
-    //userProfile.social_media = ctx.request.body.social_media;
-    userProfile.user = await User.getId(ctx.user);
-    await userProfile.save();
+    if(profile) return new HttpResponseBadRequest({ message: 'Ya tiene un perfil de usuario creado' });
 
-    return new HttpResponseCreated({ userProfile, message: `Se han guardado los datos del perfil` });
+    profile = new Profile();
+
+    try {
+      profile.picture = ctx.request.body.picture;
+      profile.last_name = ctx.request.body.last_name;
+      //userProfile.social_media = ctx.request.body.social_media;
+      profile.user = await User.getId(ctx.user);
+      await profile.save();
+    } catch (e: unknown) {
+      return new HttpResponseBadRequest({ message: '¡Oh no! Lo sentimos, ocurrió un error' });
+    }
+
+    return new HttpResponseCreated({ profile, message: `Se han guardado los datos del perfil` });
   }
 
   @Patch('/:profileId')
-  @RoleRequired(UserRole.CREATOR, UserRole.FOUNDER)
+  //@RoleRequired(UserRole.CREATOR, UserRole.FOUNDER)
   @ApiOperationId('modifyProfile')
   @ApiOperationSummary('Update/modify an existing profile.')
   @ApiResponse(400, { description: 'Invalid profile.' })
@@ -100,7 +124,7 @@ export class ProfileController {
   }
 
   @Put('/:profileId')
-  @RoleRequired(UserRole.CREATOR, UserRole.FOUNDER)
+  //@RoleRequired(UserRole.CREATOR, UserRole.FOUNDER)
   @ApiOperationId('replaceProfile')
   @ApiOperationSummary('Update/replace an existing profile.')
   @ApiResponse(400, { description: 'Invalid profile.' })
@@ -123,7 +147,7 @@ export class ProfileController {
   }
 
   @Delete('/:profileId')
-  @RoleRequired(UserRole.FOUNDER)
+  //@RoleRequired(UserRole.FOUNDER)
   @ApiOperationId('deleteProfile')
   @ApiOperationSummary('Delete a profile.')
   @ApiResponse(404, { description: 'Profile not found.' })

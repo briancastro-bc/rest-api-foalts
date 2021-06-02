@@ -4,7 +4,7 @@ import { User, UserRole } from 'app/entities';
 export function RoleRequired(role: UserRole, otherRole?: UserRole): HookDecorator {
   return Hook(async (ctx: Context<User>) => {
     try {
-      if(!ctx.user.user_role) {
+      if(!ctx.user.user_role.includes(role || otherRole, 0)) {
         return new HttpResponseForbidden({ message: 'No cumple con el rol requerido' });
       }
     } catch (e: unknown) {
