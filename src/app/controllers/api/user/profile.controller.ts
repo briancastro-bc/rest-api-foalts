@@ -48,7 +48,7 @@ export class ProfileController {
       profiles,
       user
     }
-    return new HttpResponseOK({ userData, message: `He-he. Te mostramos tu perfil de usuario` } );
+    return new HttpResponseOK({ userData });
   }
 
   @Get('/:profileId')

@@ -7,12 +7,13 @@ import {
 import { JWTRequired } from '@foal/jwt';
 import { getRepository } from 'typeorm';
 
-import { Notification } from '../../../entities';
-import { RefreshJWT } from '../../../hooks';
+import { Notification, UserRole } from '../../../entities';
+import { RefreshJWT, RoleRequired } from '../../../hooks';
 import { notificationSchema } from '../../../schema';
 
 @JWTRequired()
 @RefreshJWT()
+@RoleRequired(UserRole.FOUNDER)
 @ApiUseTag('notification')
 export class NotificationController {
 

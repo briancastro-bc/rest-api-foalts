@@ -1,6 +1,9 @@
 {
   "port": "env(PORT)",
   "settings": {
+    "sendEmail": {
+      "url": "env(MAIL_SMTPS)"
+    },
     "bodyParser": {
       "limit": "50mb"
     },
